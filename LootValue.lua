@@ -1,8 +1,25 @@
-local LootValueFrame = CreateFrame("Frame")
+local isEnabled = true
+local lastLootTime = 0
 local currentLoot = {}
-local totalValue = 0
-LootValueFrame:RegisterEvent("LOOT_READY")
+local totalMoneyLooted = 0
+local highestValueItem = nil
+local highestValue = 0
+local displayLootValueScheduled = false
 
+local function GetAuctionBuyoutForItemID(itemID)
+    local itemName, _, itemRarity, _, _, _, _, _, _, _, itemSellPrice = GetItemInfo(itemID)
+    if itemName and AucAdvanced then
+        local aucValue = AucAdvanced.API.GetMarketValue(itemID)
+        if aucValue then
+            return aucValue
+        else
+            print("No auction data found for item:", itemName)
+        end
+    else
+        print("No item info found for itemID:", itemID)
+    end
+    return itemSellPrice
+end
 local function getMessageByRange(totalValue)
   local goldValue = totalValue / 10000
   if goldValue >= 2000 then
@@ -32,15 +49,6 @@ local function getMessageByRange(totalValue)
   end
 end
 
-
-local function GetAuctionBuyoutForItemID(itemID)
-    local itemName = GetItemInfo(itemID)
-    if itemName then
-        return GetAuctionBuyoutForItem(itemName)
-    end
-    return nil
-end
-
 local function GetItemValue(itemID)
     local _, _, itemRarity, _, _, _, _, _, _, _, itemSellPrice = GetItemInfo(itemID)
     if itemRarity >= 1 then
@@ -60,49 +68,53 @@ local function GetItemValue(itemID)
     return itemSellPrice
 end
 
-local displayLootValueScheduled = false
-
 local function displayLootValue()
-    if displayLootValueScheduled then
-        displayLootValueScheduled = false
 
-        for _, itemID in ipairs(currentLoot) do
-            local itemValue = GetItemValue(itemID)
-            if itemValue then
-                totalValue = totalValue + itemValue
+    local totalValue = totalMoneyLooted
+    for _, itemID in ipairs(currentLoot) do
+        local itemValue = GetAuctionBuyoutForItemID(itemID)
+        if itemValue then
+            totalValue = totalValue + itemValue
+            if itemValue > highestValue then
+                highestValue = itemValue
+                highestValueItem = itemID
             end
         end
-
-        if totalValue > 0 then
-            local message = getMessageByRange(totalValue)
-            print("Total value of looted items: " .. GetCoinTextureString(totalValue) .. " - " .. message)
-        end
-
-        currentLoot = {}
-        totalValue = 0
     end
+
+    if totalValue > 0 then
+        local message = getMessageByRange(totalValue)
+        print("Total value of looted items: " .. GetCoinTextureString(totalValue) .. " - " .. message)
+        if highestValueItem then
+            local highestValueItemLink = select(2, GetItemInfo(highestValueItem))
+            print("Highest value item: " .. highestValueItemLink .. " - " .. GetCoinTextureString(highestValue))
+        end
+    end
+
+    currentLoot = {}
+    totalMoneyLooted = 0
+    highestValueItem = nil
+    highestValue = 0
 end
 
-LootValueFrame:SetScript("OnEvent", function(self, event, ...)
-    if event == "LOOT_READY" then
-        local numLootItems = GetNumLootItems()
-
-        for i = 1, numLootItems do
-            local lootSlotLink = GetLootSlotLink(i)
-            if lootSlotLink then
-                local _, _, itemID = string.find(lootSlotLink, "item:(%d+):")
-                itemID = tonumber(itemID)
+local lootFrame = CreateFrame("Frame")
+lootFrame:RegisterEvent("LOOT_READY")
+lootFrame:SetScript("OnEvent", function()
+    if not isEnabled then return end
+    for i = 1, GetNumLootItems() do
+        local lootSlotType = GetLootSlotType(i)
+        if lootSlotType == LOOT_SLOT_TYPE_ITEM then
+            local itemLink = GetLootSlotLink(i)
+            if itemLink then
+                local itemID = tonumber(string.match(itemLink, "item:(%d+)"))
                 if itemID then
                     table.insert(currentLoot, itemID)
                 end
             end
-        end
-        
-        if not displayLootValueScheduled then
-            displayLootValueScheduled = true
-            C_Timer.After(5, displayLootValue)
+        elseif lootSlotType == LOOT_SLOT_TYPE_COIN then
+            local _, _, _, money = GetLootSlotInfo(i)
+            totalMoneyLooted = totalMoneyLooted + money
         end
     end
+    displayLootValue()
 end)
-
-print("Loot Value loaded.  We're gonna be as rich as Bobby soon!")
