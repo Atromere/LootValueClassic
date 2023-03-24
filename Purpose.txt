@@ -1,0 +1,61 @@
+Please write the code for an addon that works on top of gathermate2 with gathermate2data for wow classic version 1.14.3 API addon.
+It should help increase the chance that I will find a treasure chest on the map.
+It should enhance farming teasure chests, making it easier and more likely to successfully find treasure chests.
+It should keep track of chests recently looted to adjust probability and tracking, thus always increasing odds of finding a treasure chest.  
+This should be saved in permenant storage so that the data isn't lost on logout.
+It should have proper slash command and interface options for all features.
+Thee addon should use statistical analysis to determine the propbability that a chest is about to spawn.  
+To enhance this, it should keep track of all players in the zone looting chests.
+The addon should be humorous and entertaining when interfacing with the player since farming can be fairly mundane.
+Please make sure thatit  works on top of gathermate2 with gathermate2data for wow classic version 1.14.3 API addon.
+Please reconsider all requirements and make sure each requirement is met.
+
+Please take into account the following addon works in my version and the Treasure Hunter addon should use the same API as the below addon.
+"
+local frame = CreateFrame("Frame")
+local soundEnabled = true
+local messagesEnabled = true
+local critKillMessages = {
+    "Crit-erminated!",
+    "Crash, bam, crit!",
+    "That's one crit-tastic kill!",
+    "Crit happens!",
+}
+
+SLASH_CRITDANCE1 = "/critdance"
+SlashCmdList["CRITDANCE"] = function(msg, editbox)
+    if msg == "toggle sound" then
+        soundEnabled = not soundEnabled
+        print("CritDance: Sound", soundEnabled and "enabled" or "disabled")
+    elseif msg == "toggle messages" then
+        messagesEnabled = not messagesEnabled
+        print("CritDance: Messages", messagesEnabled and "enabled" or "disabled")
+    else
+        print("CritDance v1.0: Bobby Kotick would probably charge you extra for this feature.")
+    end
+end
+
+local function onEvent(self, event, ...)
+    if event == "COMBAT_LOG_EVENT_UNFILTERED" then
+        local timestamp, eventType, hideCaster, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, spellID, spellName, spellSchool, amount, overkill, school, resisted, blocked, absorbed, critical, glancing, crushing, isOffHand = CombatLogGetCurrentEventInfo()
+
+        if eventType == "SWING_DAMAGE" or eventType == "RANGE_DAMAGE" or eventType == "SPELL_DAMAGE" then
+            if critical and overkill and overkill > 0 and sourceGUID == UnitGUID("player") then
+                DoEmote("DANCE")
+
+                if soundEnabled then
+                    PlaySound(416) -- A murloc sound from the WoW Classic game (mMurlocAggroOld)
+                end
+
+                if messagesEnabled then
+                    local randomMessage = critKillMessages[math.random(1, #critKillMessages)]
+                    SendChatMessage("CritDance: " .. randomMessage, "SAY") -- Send the message to /say
+                end
+            end
+        end
+    end
+end
+
+frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+frame:SetScript("OnEvent", onEvent)
+"

@@ -1,0 +1,9 @@
+## Interface: 11403
+## Title: Loot Value
+## Notes: Displays the value of looted items using AHDB data and says funny messages based on the loot value.
+## Author: Trevor Panhorst
+## Version: 1.0.0
+## SavedVariables: LootValueDB
+## X-License: MIT
+
+LootValue.lua
