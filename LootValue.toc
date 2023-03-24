@@ -7,3 +7,4 @@
 ## X-License: MIT
 
 LootValue.lua
+thresholds.lua
